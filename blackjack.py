@@ -3,7 +3,7 @@
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'bj'))
 
-from BJ import *
+from BJ import Shoe
 
 s = Shoe(8)
 
