@@ -1,5 +1,5 @@
 
-import os
+import os, sys, tty, termios
 from enum import Enum
 
 class HandStatus(Enum):
@@ -19,6 +19,7 @@ class Game():
     save_file = 'bj.txt'
     min_bet = 500
     max_bet = 10000000
+    termios_attrs = None
     
     def __init__(self):
         self.num_decks = 1
@@ -29,6 +30,13 @@ class Game():
         self.dealer_hand = None
         self.current_player_hand = 0
         self.player_hands = []
+
+    def unbuffer():
+        Game.termios_attrs = termios.tcgetattr(sys.stdin.fileno())
+        tty.setcbreak(sys.stdin.fileno())
+
+    def buffer():
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, Game.termios_attrs)
 
     def all_bets(self):
         bets = 0
@@ -41,7 +49,7 @@ class Game():
         br = False
         c = ''
         while True:
-            c = input()
+            c = sys.stdin.read(1)
             if c == 'y':
                 br = True
                 self.insure_hand()
@@ -81,17 +89,17 @@ class Game():
     def draw_hands(self):
         self.clear()
         out = '\n Dealer:\n%s\n' % str(self.dealer_hand)
-        out = '%s\n Player $%s:\n' % (out, self.money / 100.0)
+        out = '%s\n Player $%.2f:\n' % (out, self.money / 100.0)
         for i in range(len(self.player_hands)):
             out = '%s%s' % (out, str(self.player_hands[i]))
         print(u'%s' % out)
 
     def draw_player_bet_options(self):
-        out = ' (D) Deal Hand  (B) Change Bet  (Q) Quit\n'
+        print(' (D) Deal Hand  (B) Change Bet  (Q) Quit')
         br = False
         c = ''
         while True:
-            c = input()
+            c = sys.stdin.read(1)
             if c == 'd':
                 br = True
                 self.deal_new_hand()
@@ -107,9 +115,11 @@ class Game():
     def get_new_bet(self):
         self.clear()
         self.draw_hands()
-        out = '  Current Bet: $%s  Enter New Bet: $' % self.current_bet / 100
+        print('  Current Bet: $%.2f  Enter New Bet: $' % (self.current_bet / 100.0))
+        Game.buffer()
         tmp = input()
-        self.current_bet = tmp * 100
+        Game.unbuffer()
+        self.current_bet = int(tmp) * 100
         self.normalize_bet()
         self.deal_new_hand()
 
@@ -150,7 +160,7 @@ class Game():
         self.draw_hands()
         h.get_action()
 
-    def normalize_current_bet(self):
+    def normalize_bet(self):
         if self.current_bet < Game.min_bet:
             self.current_bet = Game.min_bet
         elif self.current_bet > Game.max_bet:
@@ -177,7 +187,7 @@ class Game():
                 h.status = HandStatus.Lost
             else:
                 h.status = HandStatus.Push
-        self.normalize_current_bet()
+        self.normalize_bet()
         self.save_game()
 
     def play_dealer_hand(self):
@@ -208,8 +218,10 @@ class Game():
         h.get_action()
 
     def run(self):
+        Game.unbuffer()
         self.deal_new_hand()
-        
+        Game.buffer()
+
     def save_game(self):
         try:
             f = open(Game.save_file, 'w')
@@ -226,16 +238,17 @@ class Game():
         except:
             f = None
         if f is not None:
-            s = f.read()
+            s = f.read().strip()
             f.close()
         a = s.split('|')
         if len(a) == 3:
             self.num_decks = int(a[0])
             self.money = float(a[1])
-            self.current_bet = int(a[2])
+            self.current_bet = int(float(a[2]))
         if self.money < Game.min_bet:
             self.money = 10000
-            
+            self.current_bet = Game.min_bet
+
     def split_current_hand(self):
         current_hand = self.player_hands[self.current_player_hand]
         if not current_hand.can_split():
@@ -391,7 +404,7 @@ class PlayerHand(Hand):
             out = '%s-' % out
         elif self.status == HandStatus.Won:
             out = '%s+' % out
-        out = '%s$%s' % (out, self.bet / 100.0)
+        out = '%s$%.2f' % (out, self.bet / 100.0)
         if not self.played and self == self.game.player_hands[self.game.current_player_hand]:
             out = '%s ⇐' % out
         out = '%s ' % out
@@ -401,7 +414,7 @@ class PlayerHand(Hand):
             out = '%s%s' % (out, 'Blackjack!' if self.is_blackjack() else 'Win!')
         elif self.status == HandStatus.Push:
             out = '%s%s' % (out, 'Push!')
-        out = '%s\n\n' % out
+        out = '%s\n' % out
         return u'%s' % out
 
     def get_action(self):
@@ -414,11 +427,11 @@ class PlayerHand(Hand):
             out = '%s(P) Split  ' % out
         if self.can_dbl():
             out = '%s(D) Double  ' % out
-        print(u'%s\n' % out)
+        print(u'%s' % out)
         br = False
         c = ''
         while True:
-            c = input()
+            c = sys.stdin.read(1)
             if c == 'h':
                 br = True
                 self.hit()
