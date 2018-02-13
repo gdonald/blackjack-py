@@ -1,5 +1,6 @@
 
 import os, sys, tty, termios
+from copy import copy
 from enum import Enum
 
 class HandStatus(Enum):
@@ -8,11 +9,9 @@ class HandStatus(Enum):
     Lost = 2
     Push = 3
 
-
 class CountMethod(Enum):
     Soft = 0
     Hard = 1
-
 
 class Game():
 
@@ -31,6 +30,9 @@ class Game():
         self.current_player_hand = 0
         self.player_hands = []
 
+    def __del__(self):
+        Game.buffer()
+
     def unbuffer():
         Game.termios_attrs = termios.tcgetattr(sys.stdin.fileno())
         tty.setcbreak(sys.stdin.fileno())
@@ -45,7 +47,7 @@ class Game():
         return bets
 
     def ask_insurance(self):
-        out = ' Insurance?  (Y) Yes  (N) No\n'
+        print(' Insurance?  (Y) Yes  (N) No')
         br = False
         c = ''
         while True:
@@ -80,7 +82,7 @@ class Game():
         if self.player_hands[0].is_done():
             self.pay_hands()
             self.draw_hands()
-            self.draw_player_bet_options()
+            self.bet_options()
             return
         self.draw_hands()
         self.player_hands[0].get_action()
@@ -94,8 +96,8 @@ class Game():
             out = '%s%s' % (out, str(self.player_hands[i]))
         print(u'%s' % out)
 
-    def draw_player_bet_options(self):
-        print(' (D) Deal Hand  (B) Change Bet  (Q) Quit')
+    def bet_options(self):
+        print(' (D) Deal Hand  (B) Change Bet  (O) Options  (Q) Quit')
         br = False
         c = ''
         while True:
@@ -106,10 +108,78 @@ class Game():
             elif c == 'b':
                 br = True
                 self.get_new_bet()
+            elif c == 'o':
+                br = True
+                self.game_options()
             elif c == 'q':
                 br = True
                 self.clear()
             if br:
+                break
+
+    def game_options(self):
+        self.clear()
+        self.draw_hands()
+        print(' (N) Number of Decks  (T) Deck Type  (B) Back')
+        br = False
+        c = ''
+        while True:
+            c = sys.stdin.read(1)
+            if c == 'n':
+                br = True
+                self.get_new_num_decks()
+            elif c == 't':
+                br = True
+                self.get_new_deck_type()
+            elif c == 'b':
+                br = True
+                self.clear()
+                self.draw_hands()
+                self.bet_options()
+            if br:
+                break
+
+    def get_new_num_decks(self):
+        self.clear()
+        self.draw_hands()
+        print('  Number of Decks: %d  Enter New Number of Decks (1-8): ' % self.num_decks)
+        tmp = int(sys.stdin.read(1))
+        if tmp < 1:
+            tmp = 1
+        if tmp > 8:
+            tmp = 8
+        self.game.num_decks = tmp
+        self.game_options()
+
+    def get_new_deck_type(self):
+        self.clear()
+        self.draw_hands()
+        print(' (1) Regular  (2) Aces  (3) Jacks  (4) Aces & Jacks  (5) Sevens  (6) Eights')
+        br = False
+        c = ''
+        while True:
+            c = sys.stdin.read(1)
+            if c == '1':
+                br = True
+                self.shoe.new_regular()
+            if c == '2':
+                br = True
+                self.shoe.new_aces()
+            if c == '3':
+                br = True
+                self.shoe.new_jacks()
+            if c == '4':
+                br = True
+                self.shoe.new_aces_jacks()
+            if c == '5':
+                br = True
+                self.shoe.new_sevens()
+            if c == '6':
+                br = True
+                self.shoe.new_eights()
+            if br:
+                self.draw_hands()
+                self.bet_options()
                 break
 
     def get_new_bet(self):
@@ -131,7 +201,7 @@ class Game():
         h.stayed = HandStatus.Lost
         self.money -= h.bet
         self.draw_hands()
-        self.draw_player_bet_options()
+        self.bet_options()
 
     def more_hands_to_play(self):
         return self.current_player_hand < len(self.player_hands) - 1
@@ -149,13 +219,13 @@ class Game():
             self.dealer_hand.played = True
             self.pay_hands()
             self.draw_hands()
-            self.draw_player_bet_options()
+            self.bet_options()
             return
         h = self.player_hands[self.current_player_hand]
         if h.is_done():
             self.play_dealer_hand()
             self.draw_hands()
-            self.draw_player_bet_options()
+            self.bet_options()
             return
         self.draw_hands()
         h.get_action()
@@ -250,30 +320,29 @@ class Game():
             self.current_bet = Game.min_bet
 
     def split_current_hand(self):
-        current_hand = self.player_hands[self.current_player_hand]
-        if not current_hand.can_split():
-            self.draw_hands()
-            current_hand.get_action()
-            return
-        self.player_hands.append(PlayerHand(self, self.current_bet))
-        x = len(self.player_hands) - 1
-        while x > self.current_player_hand:
-            self.player_hands[x] = self.player_hands[x - 1]
-            x -= 1
-        this_hand = self.player_hands[self.current_player_hand]
-        split_hand = self.player_hands[self.current_player_hand + 1]
-        split_hand.cards = []
-        c = this_hand.cards[len(this_hand.cards) - 1]
-        split_hand.cards.append(c)
-        this_hand.cards.pop(len(this_hand.cards) - 1)
-        this_hand.deal_card()
-        if this_hand.is_done():
-            this_hand.process()
-            return
-        self.draw_hands()
-        self.player_hands[self.current_player_hand].get_action()
+        hand_count = len(self.player_hands)
+        new_hand = PlayerHand(self, self.current_bet)
+        self.player_hands.append(new_hand)
 
-        
+        while hand_count > self.current_player_hand:
+            h = copy(self.player_hands[hand_count - 1])
+            self.player_hands[hand_count] = h
+            hand_count -= 1
+
+        current_hand = self.player_hands[self.current_player_hand]
+        split_hand = self.player_hands[self.current_player_hand + 1]
+
+        split_hand.cards = [copy(current_hand.cards[1])]
+        current_hand.cards = [copy(current_hand.cards[0])]
+        current_hand.deal_card()
+
+        if current_hand.is_done():
+            current_hand.process()
+            return
+
+        self.draw_hands()
+        current_hand.get_action()
+
 class Hand:
 
     def __init__(self, game):
@@ -282,9 +351,8 @@ class Hand:
         self.stood = False
         self.played = False
 
-#    def deal_card(self):
-#        c = self.game.shoe.get_next_card()
-#        self.cards.append(c)
+    def deal_card(self):
+        self.cards.append(self.game.shoe.get_next_card())
 
     def is_blackjack(self):
         if len(self.cards) != 2:
@@ -294,7 +362,6 @@ class Hand:
         if self.cards[1].is_ace() and self.cards[0].is_ten():
             return True
         return False
-
 
 class PlayerHand(Hand):
 
@@ -306,9 +373,6 @@ class PlayerHand(Hand):
         self.status = HandStatus.Unknown
         self.payed = False
 
-    def deal_card(self):
-        self.cards.append(self.game.shoe.get_next_card())
-        
     def is_busted(self):
         return self.get_value(CountMethod.Soft) > 21
 
@@ -378,14 +442,14 @@ class PlayerHand(Hand):
             self.process()
 
     def stand(self):
-        self.stoof = True
+        self.stood = True
         self.played = True
         if self.game.more_hands_to_play():
             self.game.play_more_hands()
             return
         self.game.play_dealer_hand()
         self.game.draw_hands()
-        self.game.draw_player_bet_options()
+        self.game.bet_options()
 
     def process(self):
         if self.game.more_hands_to_play():
@@ -393,7 +457,7 @@ class PlayerHand(Hand):
             return
         self.game.play_dealer_hand()
         self.game.draw_hands()
-        self.game.draw_player_bet_options()
+        self.game.bet_options()
 
     def __str__(self):
         out = ' '
@@ -439,24 +503,20 @@ class PlayerHand(Hand):
                 br = True
                 self.stand()
             elif c == 'p':
-                br = True
-                self.game.split_current_hand()
+                if self.can_split():
+                    br = True
+                    self.game.split_current_hand()
             elif c == 'd':
                 br = True
                 self.dbl()
             if br:
                 break
 
-
 class DealerHand(Hand):
 
     def __init__(self, game):
         super().__init__(game)
         self.hide_down_card = True
-
-    def deal_card(self):
-        c = self.game.shoe.get_next_card()
-        self.cards.append(c)
 
     def is_busted(self):
         return self.get_value(CountMethod.Soft) > 21
@@ -489,7 +549,6 @@ class DealerHand(Hand):
 
     def upcard_is_ace(self):
         return self.cards[0].is_ace()
-
 
 class Shoe:
 
@@ -533,6 +592,36 @@ class Shoe:
                 for value in range(13):
                     self.cards.append(Card(value, suite))
 
+    def new_aces(self):
+        self.cards = []
+        for _ in range(self.num_decks * 10):
+            for suite in range(4):
+                self.cards.append(Card(0, suite))
+
+    def new_jacks(self):
+        self.cards = []
+        for _ in range(self.num_decks * 10):
+            for suite in range(4):
+                self.cards.append(Card(10, suite))
+
+    def new_aces_jacks(self):
+        self.cards = []
+        for _ in range(self.num_decks * 10):
+            for suite in range(4):
+                self.cards.append(Card(0, suite))
+                self.cards.append(Card(10, suite))
+
+    def new_sevens(self):
+        self.cards = []
+        for _ in range(self.num_decks * 10):
+            for suite in range(4):
+                self.cards.append(Card(6, suite))
+
+    def new_eights(self):
+        self.cards = []
+        for _ in range(self.num_decks * 10):
+            for suite in range(4):
+                self.cards.append(Card(7, suite))
 
 class Card:
 
