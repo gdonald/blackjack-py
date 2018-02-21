@@ -2,7 +2,7 @@
 Command line blackjack written in Python 3.
 
 ## Clone
-    git clone https://github.com/gdonald/blackjack-c.git
+    git clone https://github.com/gdonald/blackjack-py.git
 
 ## Run
     cd blackjack-py
