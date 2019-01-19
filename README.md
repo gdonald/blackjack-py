@@ -12,7 +12,7 @@ Command line blackjack written in Python 3.
 
 Increase your terminal font size to see the cards better:
 
-![Blackjack](https://gitlab.com/gdonald/blackjack-py/raw/master/bj.png)
+![Blackjack](https://raw.githubusercontent.com/gdonald/blackjack-py/master/bj.png)
 
 ## License
 
