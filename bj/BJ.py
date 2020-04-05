@@ -543,7 +543,7 @@ class DealerHand(Hand):
                 out = '%s%s ' % (out, Card.faces[13][0])
             else:
                 c = self.cards[i]
-                out = '%s%s ' % (out, Card.faces[c.value][c.suite])
+                out = '%s%s ' % (out, Card.faces[c.value][c.suit])
         out = '%s ⇒  %s' % (out, self.get_value(CountMethod.Soft))
         return u'%s' % out
 
@@ -588,40 +588,40 @@ class Shoe:
     def new_regular(self):
         self.cards = []
         for _ in range(self.num_decks):
-            for suite in range(4):
+            for suit in range(4):
                 for value in range(13):
-                    self.cards.append(Card(value, suite))
+                    self.cards.append(Card(value, suit))
 
     def new_aces(self):
         self.cards = []
         for _ in range(self.num_decks * 10):
-            for suite in range(4):
-                self.cards.append(Card(0, suite))
+            for suit in range(4):
+                self.cards.append(Card(0, suit))
 
     def new_jacks(self):
         self.cards = []
         for _ in range(self.num_decks * 10):
-            for suite in range(4):
-                self.cards.append(Card(10, suite))
+            for suit in range(4):
+                self.cards.append(Card(10, suit))
 
     def new_aces_jacks(self):
         self.cards = []
         for _ in range(self.num_decks * 10):
-            for suite in range(4):
-                self.cards.append(Card(0, suite))
-                self.cards.append(Card(10, suite))
+            for suit in range(4):
+                self.cards.append(Card(0, suit))
+                self.cards.append(Card(10, suit))
 
     def new_sevens(self):
         self.cards = []
         for _ in range(self.num_decks * 10):
-            for suite in range(4):
-                self.cards.append(Card(6, suite))
+            for suit in range(4):
+                self.cards.append(Card(6, suit))
 
     def new_eights(self):
         self.cards = []
         for _ in range(self.num_decks * 10):
-            for suite in range(4):
-                self.cards.append(Card(7, suite))
+            for suit in range(4):
+                self.cards.append(Card(7, suit))
 
 class Card:
 
@@ -640,12 +640,12 @@ class Card:
 	     ["🂮", "🂾", "🃎", "🃞"],
 	     ["🂠", "",  "",  "" ]]
 
-    def __init__(self, value, suite):
+    def __init__(self, value, suit):
         self.value = value
-        self.suite = suite
+        self.suit = suit
 
     def __str__(self):
-        return u'%s' % Card.faces[self.value][self.suite]
+        return u'%s' % Card.faces[self.value][self.suit]
 
     def is_ace(self):
         return self.value == 0
