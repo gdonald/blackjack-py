@@ -552,14 +552,7 @@ class DealerHand(Hand):
 
 class Shoe:
 
-    shuffle_specs = [[95, 8],
-		     [92, 7],
-		     [89, 6],
-		     [86, 5],
-		     [84, 4],
-		     [82, 3],
-		     [81, 2],
-		     [80, 1]]
+    shuffle_specs = [80, 81, 82, 84, 86, 89, 92]
 
     def __init__(self, num_decks):
         self.num_decks = num_decks
@@ -571,10 +564,8 @@ class Shoe:
         total_cards = self.num_decks * 52
         cards_dealt = total_cards - len(self.cards)
         used = (cards_dealt / total_cards) * 100.0
-        for x in range(len(Shoe.shuffle_specs)):
-            if used > Shoe.shuffle_specs[x][0] and self.num_decks == Shoe.shuffle_specs[x][1]:
-                return True
-        return False
+
+        return used > Shoe.shuffle_specs[self.num_decks - 1]
 
     def shuffle(self):
         from random import shuffle as sh
