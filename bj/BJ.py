@@ -21,14 +21,16 @@ class Game():
     termios_attrs = None
     
     def __init__(self):
-        self.num_decks = 1
+        self.shoe = Shoe()
+        self.deck_type = 1
+        self.face_type = 1
         self.money = 10000
         self.current_bet = 500
         self.load_game()
-        self.shoe = Shoe(self.num_decks)
         self.dealer_hand = None
         self.current_player_hand = 0
         self.player_hands = []
+        self.quitting = False
 
     def __del__(self):
         Game.buffer()
@@ -64,9 +66,14 @@ class Game():
     def clear(self):
         os.system('export TERM=linux; clear')
 
+    def card_face(self, value, suit ):
+        if self.face_type == 2:
+            return Card.faces2[value][suit]
+        return Card.faces[value][suit]
+
     def deal_new_hand(self):
         if self.shoe.need_to_shuffle():
-            self.shoe.shuffle()
+            self.shoe.build_new_shoe(self.deck_type)
         self.player_hands = [PlayerHand(self, self.current_bet)]
         self.current_player_hand = 0
         self.dealer_hand = DealerHand(self)
@@ -104,7 +111,6 @@ class Game():
             c = sys.stdin.read(1)
             if c == 'd':
                 br = True
-                self.deal_new_hand()
             elif c == 'b':
                 br = True
                 self.get_new_bet()
@@ -113,6 +119,7 @@ class Game():
                 self.game_options()
             elif c == 'q':
                 br = True
+                self.quitting = True
                 self.clear()
             if br:
                 break
@@ -120,7 +127,7 @@ class Game():
     def game_options(self):
         self.clear()
         self.draw_hands()
-        print(' (N) Number of Decks  (T) Deck Type  (B) Back')
+        print(' (N) Number of Decks  (T) Deck Type  (F) Face Type  (B) Back')
         br = False
         c = ''
         while True:
@@ -131,6 +138,9 @@ class Game():
             elif c == 't':
                 br = True
                 self.get_new_deck_type()
+            elif c == 'f':
+                br = True
+                self.get_new_face_type()
             elif c == 'b':
                 br = True
                 self.clear()
@@ -151,32 +161,39 @@ class Game():
         self.game.num_decks = tmp
         self.game_options()
 
+    def get_new_face_type(self):
+        self.clear()
+        self.draw_hands()
+        print('(1) A♠  (2) 🂡')
+        br = False
+        c = ''
+        while True:
+            c = sys.stdin.read(1)
+            if c == '1' or c == '2':
+                br = True
+                self.face_type = int(c)
+                self.save_game()
+            if br:
+                self.draw_hands()
+                self.bet_options()
+                break
+
     def get_new_deck_type(self):
         self.clear()
         self.draw_hands()
         print(' (1) Regular  (2) Aces  (3) Jacks  (4) Aces & Jacks  (5) Sevens  (6) Eights')
         br = False
-        c = ''
+        tmp = ''
         while True:
-            c = sys.stdin.read(1)
-            if c == '1':
+            tmp = sys.stdin.read(1)
+            c = int(tmp)
+            if c > 0 and c < 7:
                 br = True
-                self.shoe.new_regular()
-            if c == '2':
-                br = True
-                self.shoe.new_aces()
-            if c == '3':
-                br = True
-                self.shoe.new_jacks()
-            if c == '4':
-                br = True
-                self.shoe.new_aces_jacks()
-            if c == '5':
-                br = True
-                self.shoe.new_sevens()
-            if c == '6':
-                br = True
-                self.shoe.new_eights()
+                self.deck_type = c
+                if c > 1:
+                    self.shoe.num_decks = 8
+                self.shoe.build_new_shoe(self.deck_type)
+                self.save_game()
             if br:
                 self.draw_hands()
                 self.bet_options()
@@ -185,7 +202,7 @@ class Game():
     def get_new_bet(self):
         self.clear()
         self.draw_hands()
-        print('  Current Bet: $%.2f  Enter New Bet: $' % (self.current_bet / 100.0))
+        print('  Current Bet: $%.2f  Enter New Bet: $' % (self.current_bet / 100.0), end='')
         Game.buffer()
         tmp = input()
         Game.unbuffer()
@@ -289,7 +306,8 @@ class Game():
 
     def run(self):
         Game.unbuffer()
-        self.deal_new_hand()
+        while not self.quitting:
+            self.deal_new_hand()
         Game.buffer()
 
     def save_game(self):
@@ -298,7 +316,7 @@ class Game():
         except:
             f = None
         if f is not None:
-            f.write('%s|%s|%s' % (self.num_decks, self.money, self.current_bet))
+            f.write('%s|%s|%s|%s|%s' % (self.shoe.num_decks, self.money, self.current_bet, self.deck_type, self.face_type))
             f.close()
 
     def load_game(self):
@@ -311,10 +329,12 @@ class Game():
             s = f.read().strip()
             f.close()
         a = s.split('|')
-        if len(a) == 3:
-            self.num_decks = int(a[0])
+        if len(a) == 5:
+            self.shoe.num_decks = int(a[0])
             self.money = float(a[1])
             self.current_bet = int(float(a[2]))
+            self.deck_type = int(a[3])
+            self.face_type = int(a[4])
         if self.money < Game.min_bet:
             self.money = 10000
             self.current_bet = Game.min_bet
@@ -359,9 +379,7 @@ class Hand:
             return False
         if self.cards[0].is_ace() and self.cards[1].is_ten():
             return True
-        if self.cards[1].is_ace() and self.cards[0].is_ten():
-            return True
-        return False
+        return self.cards[1].is_ace() and self.cards[0].is_ten()
 
 class PlayerHand(Hand):
 
@@ -462,7 +480,8 @@ class PlayerHand(Hand):
     def __str__(self):
         out = ' '
         for i in range(len(self.cards)):
-            out = '%s%s ' % (out, self.cards[i])
+            c = self.cards[i]
+            out = '%s%s ' % (out, self.game.card_face(c.value, c.suit))
         out = '%s ⇒  %s ' % (out, self.get_value(CountMethod.Soft))
         if self.status == HandStatus.Lost:
             out = '%s-' % out
@@ -540,10 +559,10 @@ class DealerHand(Hand):
         out = ' '
         for i in range(len(self.cards)):
             if i == 1 and self.hide_down_card:
-                out = '%s%s ' % (out, Card.faces[13][0])
+                out = '%s%s ' % (out, self.game.card_face(13, 0))
             else:
                 c = self.cards[i]
-                out = '%s%s ' % (out, Card.faces[c.value][c.suit])
+                out = '%s%s ' % (out, self.game.card_face(c.value, c.suit))
         out = '%s ⇒  %s' % (out, self.get_value(CountMethod.Soft))
         return u'%s' % out
 
@@ -552,11 +571,12 @@ class DealerHand(Hand):
 
 class Shoe:
 
-    shuffle_specs = [80, 81, 82, 84, 86, 89, 92]
+    shuffle_specs = [80, 81, 82, 84, 86, 89, 92, 95]
 
-    def __init__(self, num_decks):
-        self.num_decks = num_decks
+    def __init__(self):
+        self.num_decks = 8
         self.cards = []
+        self.cards_per_deck = 52
 
     def need_to_shuffle(self):
         if len(self.cards) == 0:
@@ -569,74 +589,97 @@ class Shoe:
 
     def shuffle(self):
         from random import shuffle as sh
-        self.new_regular()
         for x in range(7):
             sh(self.cards)
 
     def get_next_card(self):
         return self.cards.pop(0)
 
-    def new_regular(self):
+    def build_new_shoe(self, deck_type):
+        match deck_type:
+            case 2:
+                self.new_aces()
+            case 3:
+                self.new_jacks()
+            case 4:
+                self.new_aces_jacks()
+            case 5:
+                self.new_sevens()
+            case 6:
+                self.new_eights()
+            case _:
+                self.new_regular()
+        self.shuffle()
+
+    def get_total_cards(self):
+        return self.num_decks * self.cards_per_deck
+
+    def new_shoe(self, values):
+        total_cards = self.get_total_cards()
         self.cards = []
-        for _ in range(self.num_decks):
-            for suit in range(4):
-                for value in range(13):
-                    self.cards.append(Card(value, suit))
+        while len(self.cards) < total_cards:    
+            for _ in range(self.num_decks):
+                for suit in range(4):
+                    if len(self.cards) >= total_cards:
+                        break
+                    for value in values:
+                        if len(self.cards) >= total_cards:
+                            break
+                        self.cards.append(Card(value, suit))
+
+    def new_regular(self):
+        self.new_shoe(list(range(0, 13)))
 
     def new_aces(self):
-        self.cards = []
-        for _ in range(self.num_decks * 10):
-            for suit in range(4):
-                self.cards.append(Card(0, suit))
+        self.new_shoe([0])
 
     def new_jacks(self):
-        self.cards = []
-        for _ in range(self.num_decks * 10):
-            for suit in range(4):
-                self.cards.append(Card(10, suit))
+        self.new_shoe([10])
 
     def new_aces_jacks(self):
-        self.cards = []
-        for _ in range(self.num_decks * 10):
-            for suit in range(4):
-                self.cards.append(Card(0, suit))
-                self.cards.append(Card(10, suit))
+        self.new_shoe([0, 10])
 
     def new_sevens(self):
-        self.cards = []
-        for _ in range(self.num_decks * 10):
-            for suit in range(4):
-                self.cards.append(Card(6, suit))
+        self.new_shoe([6])
 
     def new_eights(self):
-        self.cards = []
-        for _ in range(self.num_decks * 10):
-            for suit in range(4):
-                self.cards.append(Card(7, suit))
+        self.new_shoe([7])
 
 class Card:
 
-    faces = [["🂡", "🂱", "🃁", "🃑"],
-	     ["🂢", "🂲", "🃂", "🃒"],
-	     ["🂣", "🂳", "🃃", "🃓"],
-	     ["🂤", "🂴", "🃄", "🃔"],
-	     ["🂥", "🂵", "🃅", "🃕"],
-	     ["🂦", "🂶", "🃆", "🃖"],
-	     ["🂧", "🂷", "🃇", "🃗"],
-	     ["🂨", "🂸", "🃈", "🃘"],
-	     ["🂩", "🂹", "🃉", "🃙"],
-	     ["🂪", "🂺", "🃊", "🃚"],
-	     ["🂫", "🂻", "🃋", "🃛"],
-	     ["🂭", "🂽", "🃍", "🃝"],
-	     ["🂮", "🂾", "🃎", "🃞"],
-	     ["🂠", "",  "",  "" ]]
+    faces = [['A♠', 'A♥', 'A♣', 'A♦'],
+            ['2♠', '2♥', '2♣', '2♦'],
+            ['3♠', '3♥', '3♣', '3♦'],
+            ['4♠', '4♥', '4♣', '4♦'],
+            ['5♠', '5♥', '5♣', '5♦'],
+            ['6♠', '6♥', '6♣', '6♦'],
+            ['7♠', '7♥', '7♣', '7♦'],
+            ['8♠', '8♥', '8♣', '8♦'],
+            ['9♠', '9♥', '9♣', '9♦'],
+            ['T♠', 'T♥', 'T♣', 'T♦'],
+            ['J♠', 'J♥', 'J♣', 'J♦'],
+            ['Q♠', 'Q♥', 'Q♣', 'Q♦'],
+            ['K♠', 'K♥', 'K♣', 'K♦'],
+            ['??', '', '', '']]
+
+    faces2 = [['🂡', '🂱', '🃁', '🃑'],
+	     ['🂢', '🂲', '🃂', '🃒'],
+	     ['🂣', '🂳', '🃃', '🃓'],
+	     ['🂤', '🂴', '🃄', '🃔'],
+	     ['🂥', '🂵', '🃅', '🃕'],
+	     ['🂦', '🂶', '🃆', '🃖'],
+	     ['🂧', '🂷', '🃇', '🃗'],
+	     ['🂨', '🂸', '🃈', '🃘'],
+	     ['🂩', '🂹', '🃉', '🃙'],
+	     ['🂪', '🂺', '🃊', '🃚'],
+	     ['🂫', '🂻', '🃋', '🃛'],
+	     ['🂭', '🂽', '🃍', '🃝'],
+	     ['🂮', '🂾', '🃎', '🃞'],
+	     ['🂠', '',  '',  '' ]]
 
     def __init__(self, value, suit):
         self.value = value
         self.suit = suit
-
-    def __str__(self):
-        return u'%s' % Card.faces[self.value][self.suit]
 
     def is_ace(self):
         return self.value == 0

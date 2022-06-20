@@ -1,5 +1,5 @@
 # blackjack-py
-Command line blackjack written in Python 3.
+Command line blackjack depends on Python 3.10 or later.
 
 ## Clone
     git clone https://gitlab.com/gdonald/blackjack-py.git
@@ -12,7 +12,21 @@ Command line blackjack written in Python 3.
 
 Increase your terminal font size to see the cards better:
 
-![Blackjack](https://raw.githubusercontent.com/gdonald/blackjack-py/master/bj.png)
+![Blackjack](https://raw.githubusercontent.com/gdonald/blackjack-py/master/ss1.png)
+
+![Blackjack](https://raw.githubusercontent.com/gdonald/blackjack-py/master/ss2.png)
+
+### Features
+
+* Alternate Deck Types
+* Variable Number of Decks
+* Hand Splitting
+* Vegas-style Dealer Play (Dealer hits on soft 16)
+* Options Saving
+
+### Bugs / Issues / Feature Requests
+
+[https://github.com/gdonald/blackjack-py/issues](https://github.com/gdonald/blackjack-py/issues)
 
 ## License
 
