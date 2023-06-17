@@ -214,7 +214,7 @@ class Game():
         h = self.player_hands[self.current_player_hand]
         h.bet /= 2
         h.played = True
-        h.payed = True
+        h.paid = True
         h.stayed = HandStatus.Lost
         self.money -= h.bet
         self.draw_hands()
@@ -260,9 +260,9 @@ class Game():
         dhb = self.dealer_hand.is_busted()
         for x in range(len(self.player_hands)):
             h = self.player_hands[x]
-            if h.payed:
+            if h.paid:
                 continue
-            h.payed = True
+            h.paid = True
             phv = h.get_value(CountMethod.Soft)
             if dhb or phv > dhv:
                 if h.is_blackjack():
@@ -389,7 +389,7 @@ class PlayerHand(Hand):
         super().__init__(game)
         self.bet = bet
         self.status = HandStatus.Unknown
-        self.payed = False
+        self.paid = False
 
     def is_busted(self):
         return self.get_value(CountMethod.Soft) > 21
@@ -410,9 +410,9 @@ class PlayerHand(Hand):
     def is_done(self):
         if self.played or self.stood or self.is_blackjack() or self.is_busted() or 21 == self.get_value(CountMethod.Soft) or 21 == self.get_value(CountMethod.Hard):
             self.played = True
-            if not self.payed:
+            if not self.paid:
                 if self.is_busted():
-                    self.payed = True
+                    self.paid = True
                     self.status = HandStatus.Lost
                     self.game.money -= self.bet
             return True
