@@ -210,7 +210,7 @@ class Game():
         self.normalize_bet()
         self.deal_new_hand()
 
-    def insure_new_hand(self):
+    def insure_hand(self):
         h = self.player_hands[self.current_player_hand]
         h.bet /= 2
         h.played = True
