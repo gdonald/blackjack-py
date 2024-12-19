@@ -226,7 +226,7 @@ class Game():
     def need_to_play_dealer_hand(self):
         for x in range(len(self.player_hands)):
             h = self.player_hands[x]
-            if not (h.is_busted() or h.is_busted()):
+            if not (h.is_busted() or h.is_blackjack()):
                 return True
         return False
 
