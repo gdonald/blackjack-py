@@ -1,5 +1,5 @@
 
-import termios, sys, tty, os
+import termios, sys, tty, os, io
 
 from copy import copy
 
@@ -13,11 +13,17 @@ def clear():
     os.system('export TERM=linux; clear')
 
 def buffer():
-    termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, Game.termios_attrs)
+    try:
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, Game.termios_attrs)
+    except (OSError, io.UnsupportedOperation):
+        pass
 
 def unbuffer():
-    Game.termios_attrs = termios.tcgetattr(sys.stdin.fileno())
-    tty.setcbreak(sys.stdin.fileno())
+    try:
+        Game.termios_attrs = termios.tcgetattr(sys.stdin.fileno())
+        tty.setcbreak(sys.stdin.fileno())
+    except (OSError, io.UnsupportedOperation):
+        pass
 
 class Game:
     save_file = 'bj.txt'

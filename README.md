@@ -6,7 +6,14 @@ Command line blackjack depends on Python 3.10 or later.
 
 ## Run
     cd blackjack-py
+    
     ./blackjack.py
+
+## Run tests
+
+    pip install pytest pytest-cov
+
+    pytest tests/ --cov=bj --cov-report=html
 
 ## Terminal
 
